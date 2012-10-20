@@ -252,6 +252,11 @@ static RsdCpuReference::CpuSymbol gSyms[] = {
     { "_Z6rsRandff", (void *)&SC_randf2, true },
     { "_Z6rsFracf", (void *)&SC_frac, true },
 
+    // Standard C library interfaces
+    { "expf", (void *)&expf, true },
+    { "powf", (void *)&powf, true },
+    { "exp2f", (void *)&exp2f, true },
+
     { NULL, NULL, false }
 };
 
