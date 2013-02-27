@@ -269,6 +269,7 @@ private:
     uint32_t mAverageFPSFrameCount;
     uint64_t mAverageFPSStartTime;
     uint32_t mAverageFPS;
+    void    *mLib;
 };
 
 } // renderscript
