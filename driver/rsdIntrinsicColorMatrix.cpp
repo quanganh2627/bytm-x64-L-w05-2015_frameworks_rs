@@ -97,11 +97,8 @@ static void ColorMatrix_uchar4(const RsForEachStubParamStruct *p,
     uint32_t x1 = xstart;
     uint32_t x2 = xend;
 
-    in += xstart;
-    out += xstart;
-
     if(x2 > x1) {
-#if defined(ARCH_ARM_HAVE_NEON)
+#if defined(ARCH_ARM_HAVE_NEON) || defined(ARCH_X86_HAVE_SSSE3)
         int32_t len = (x2 - x1) >> 2;
         if(len > 0) {
             if (cp->use3x3) {

@@ -56,7 +56,7 @@ static void ConvolveOne(const RsForEachStubParamStruct *p, uint32_t x, uchar4 *o
                         const float* coeff) {
 
     uint32_t x1 = rsMax((int32_t)x-1, 0);
-    uint32_t x2 = rsMin((int32_t)x+1, (int32_t)p->dimX);
+    uint32_t x2 = rsMin((int32_t)x+1, (int32_t)p->dimX-1);
 
     float4 px = convert_float4(py0[x1]) * coeff[0] +
                 convert_float4(py0[x]) * coeff[1] +
@@ -101,7 +101,7 @@ static void Convolve3x3_uchar4(const RsForEachStubParamStruct *p,
     }
 
     if(x2 > x1) {
-#if defined(ARCH_ARM_HAVE_NEON)
+#if defined(ARCH_ARM_HAVE_NEON) || defined(ARCH_X86_HAVE_SSSE3)
         int32_t len = (x2 - x1 - 1) >> 1;
         if(len > 0) {
             rsdIntrinsicConvolve3x3_K(out, &py0[x1-1], &py1[x1-1], &py2[x1-1], cp->ip, len);
