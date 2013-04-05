@@ -176,7 +176,6 @@ static void wc_xy(void *usr, uint32_t idx) {
     MTLaunchStruct *mtls = (MTLaunchStruct *)usr;
     RsForEachStubParamStruct p;
     memcpy(&p, &mtls->fep, sizeof(p));
-    p.lid = idx;
     RsdHal * dc = (RsdHal *)mtls->rsc->mHal.drv;
     uint32_t sig = mtls->sig;
 
@@ -223,7 +222,6 @@ static void wc_x(void *usr, uint32_t idx) {
     MTLaunchStruct *mtls = (MTLaunchStruct *)usr;
     RsForEachStubParamStruct p;
     memcpy(&p, &mtls->fep, sizeof(p));
-    p.lid = idx;
     RsdHal * dc = (RsdHal *)mtls->rsc->mHal.drv;
     uint32_t sig = mtls->sig;
 
@@ -389,7 +387,6 @@ void rsdScriptLaunchThreads(const Context *rsc,
     } else {
         RsForEachStubParamStruct p;
         memcpy(&p, &mtls->fep, sizeof(p));
-        p.lid = 0;
         uint32_t sig = mtls->sig;
 
         //ALOGE("launch 3");
