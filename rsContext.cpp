@@ -38,6 +38,40 @@ using namespace android::renderscript;
 pthread_mutex_t Context::gInitMutex = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t Context::gLibMutex = PTHREAD_MUTEX_INITIALIZER;
 
+/*
+ * Load an external library and lookup the rsdHalInit function symbol.
+ */
+bool rsLoadExternalLibrary(void *vrsc, const char *pszLibName, void **phLib)
+{
+    Context *rsc  = static_cast<Context *>(vrsc);
+    void    *hLib = dlopen(pszLibName, RTLD_LAZY);
+
+    if(!hLib){
+        ALOGE("Failed to load external library %s (error: %s)", pszLibName, dlerror());
+        return false;
+    }
+
+    RsHalInitFunc rsdHalInit = (RsHalInitFunc)dlsym(hLib,"rsdHalInit");
+
+    if(!rsdHalInit){
+        ALOGE("Failed to resolve rsdHalInit symbol from %s, error: %s", pszLibName, dlerror());
+        dlclose(hLib);
+        return false;
+    }
+
+    if (!rsdHalInit((RsContext)rsc,0,0)) {
+        ALOGE("Hal init failed (%s)",pszLibName);
+        return false;
+    }
+
+    if(phLib){
+        *phLib = hLib;
+    }
+
+    ALOGD("Loaded external library \'%s\' successfully.",pszLibName);
+    return true;
+}
+
 bool Context::initGLThread() {
     pthread_mutex_lock(&gInitMutex);
 
@@ -278,6 +312,13 @@ void * Context::threadProc(void *vrsc) {
         ALOGE("Hal init failed");
         return NULL;
     }
+
+    ALOGD("Loading libPVRRS.so PowerVR Renderscript Driver");
+    if (!rsLoadExternalLibrary(vrsc,"libPVRRS.so",&rsc->mLib))
+    {
+        ALOGE("Failed intializing PowerVR driver");
+    }
+
     rsc->mHal.funcs.setPriority(rsc, rsc->mThreadPriority);
 
     if (rsc->mIsGraphicsContext) {
@@ -423,6 +464,7 @@ Context::Context() {
     mTargetSdkVersion = 14;
     mDPI = 96;
     mIsContextLite = false;
+    mLib = NULL;
     memset(&watchdog, 0, sizeof(watchdog));
 }
 
@@ -511,6 +553,12 @@ Context::~Context() {
 
         // Global structure cleanup.
         pthread_mutex_lock(&gInitMutex);
+
+        if (mLib) {
+            dlclose(mLib);
+            mLib = NULL;
+        }
+
         if (mDev) {
             mDev->removeContext(this);
             mDev = NULL;
