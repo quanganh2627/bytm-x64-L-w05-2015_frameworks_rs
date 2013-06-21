@@ -186,6 +186,10 @@ public:
         bool mLogShadersAttr;
         bool mLogShadersUniforms;
         bool mLogVisual;
+        bool mEnableCpuDriver;
+        bool mEnableGpuRs;
+        bool mEnableGpuFs;
+        bool mEnableGpuRsIntrinsic;
         uint32_t mDebugMaxThreads;
     } props;
 
