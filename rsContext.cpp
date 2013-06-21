@@ -241,14 +241,15 @@ void Context::displayDebugStats() {
 #endif
 }
 
-bool Context::loadRuntime(const char* filename, Context* rsc) {
-
-    // TODO: store the driverSO somewhere so we can dlclose later
+/*
+ * Load RS driver and initialize with rsdHalInit function.
+ */
+bool Context::loadRuntime(const char* filename, Context* rsc, void **mLib) {
     void *driverSO = NULL;
 
     driverSO = dlopen(filename, RTLD_LAZY);
     if (driverSO == NULL) {
-        ALOGE("Failed loading RS driver: %s", dlerror());
+        ALOGE("Failed to load RS driver: %s (error: %s)", filename, dlerror());
         return false;
     }
 
@@ -266,18 +267,21 @@ bool Context::loadRuntime(const char* filename, Context* rsc) {
 
     if (halInit == NULL) {
         dlclose(driverSO);
-        ALOGE("Failed to find rsdHalInit: %s", dlerror());
+        ALOGE("Failed to find rsdHalInit in RS driver: %s, error: %s", filename, dlerror());
         return false;
     }
 
     if (!(*halInit)(rsc, 0, 0)) {
         dlclose(driverSO);
-        ALOGE("Hal init failed");
+        ALOGE("%s Hal init failed.", filename);
         return false;
     }
-
     //validate HAL struct
-
+    // store the driverSO so we can dlclose later
+    if(mLib){
+        *mLib = driverSO;
+    }
+    ALOGD("Load RS driver \'%s\' successfully.", filename);
 
     return true;
 }
@@ -307,6 +311,10 @@ void * Context::threadProc(void *vrsc) {
     rsc->props.mLogShadersAttr = getProp("debug.rs.shader.attributes") != 0;
     rsc->props.mLogShadersUniforms = getProp("debug.rs.shader.uniforms") != 0;
     rsc->props.mLogVisual = getProp("debug.rs.visual") != 0;
+    rsc->props.mEnableCpuDriver = getProp("debug.rs.default-CPU-driver") != 0;
+    rsc->props.mEnableGpuRs = getProp("debug.rs.gpu.renderscript") != 0;
+    rsc->props.mEnableGpuFs = getProp("debug.rs.gpu.filterscript") != 0;
+    rsc->props.mEnableGpuRsIntrinsic = getProp("debug.rs.gpu.rsIntrinsic") != 0;
     rsc->props.mDebugMaxThreads = getProp("debug.rs.max-threads");
 
     bool loadDefault = true;
@@ -318,15 +326,16 @@ void * Context::threadProc(void *vrsc) {
 #define STR(S) XSTR(S)
 #define OVERRIDE_RS_DRIVER_STRING STR(OVERRIDE_RS_DRIVER)
 
-    if (getProp("debug.rs.default-CPU-driver") != 0) {
-        ALOGE("Skipping override driver and loading default CPU driver");
+    if ((rsc->props.mEnableCpuDriver) || !(rsc->props.mEnableGpuRs ||
+        rsc->props.mEnableGpuFs || rsc->props.mEnableGpuRsIntrinsic)) {
+        ALOGE("Skipping override driver \'%s\' and loading default CPU driver \'libRSDriver.so\'.",
+                 OVERRIDE_RS_DRIVER_STRING);
     } else if (rsc->mForceCpu) {
         ALOGV("Application requested CPU execution");
     } else if (rsc->getContextType() == RS_CONTEXT_TYPE_DEBUG) {
         ALOGV("Application requested debug context");
     } else {
-        if (loadRuntime(OVERRIDE_RS_DRIVER_STRING, rsc)) {
-            ALOGE("Successfully loaded runtime: %s", OVERRIDE_RS_DRIVER_STRING);
+        if (loadRuntime(OVERRIDE_RS_DRIVER_STRING, rsc, &rsc->mLib)) {
             loadDefault = false;
         } else {
             ALOGE("Failed to load runtime %s, loading default", OVERRIDE_RS_DRIVER_STRING);
@@ -338,8 +347,7 @@ void * Context::threadProc(void *vrsc) {
 #endif  // OVERRIDE_RS_DRIVER
 
     if (loadDefault) {
-        if (!loadRuntime("libRSDriver.so", rsc)) {
-            ALOGE("Failed to load default runtime!");
+        if (!loadRuntime("libRSDriver.so", rsc, NULL)) {
             rsc->setError(RS_ERROR_FATAL_DRIVER, "Failed loading RS driver");
             return NULL;
         }
@@ -509,6 +517,7 @@ Context::Context() {
     mTargetSdkVersion = 14;
     mDPI = 96;
     mIsContextLite = false;
+    mLib = NULL;
     memset(&watchdog, 0, sizeof(watchdog));
     mForceCpu = false;
     mContextType = RS_CONTEXT_TYPE_NORMAL;
@@ -618,6 +627,12 @@ Context::~Context() {
 
         // Global structure cleanup.
         pthread_mutex_lock(&gInitMutex);
+
+        if (mLib) {
+            dlclose(mLib);
+            mLib = NULL;
+        }
+
         if (mDev) {
             mDev->removeContext(this);
             mDev = NULL;
