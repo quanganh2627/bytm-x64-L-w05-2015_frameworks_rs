@@ -39,36 +39,46 @@ pthread_mutex_t Context::gInitMutex = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t Context::gLibMutex = PTHREAD_MUTEX_INITIALIZER;
 
 /*
- * Load an external library and lookup the rsdHalInit function symbol.
+ * Load RS driver and initialize with rsdHalInit function.
  */
-bool rsLoadExternalLibrary(void *vrsc, const char *pszLibName, void **phLib)
-{
-    Context *rsc  = static_cast<Context *>(vrsc);
-    void    *hLib = dlopen(pszLibName, RTLD_LAZY);
-
-    if(!hLib){
-        ALOGE("Failed to load external library %s (error: %s)", pszLibName, dlerror());
+static bool loadRsDriver(Context *rsc, const char *libName, void **mLib) {
+    // Attempt to load the RS driver.
+    void *driverSO = dlopen(libName, RTLD_LAZY);
+    if(driverSO == NULL) {
+        ALOGE("Failed to load RS driver: %s (error: %s)", libName, dlerror());
         return false;
     }
 
-    RsHalInitFunc rsdHalInit = (RsHalInitFunc)dlsym(hLib,"rsdHalInit");
+    // Need to call dlerror() to clear buffer before using it for dlsym().
+    (void) dlerror();
+    typedef bool (*HalSig)(Context*, uint32_t, uint32_t);
+    HalSig halInit = (HalSig) dlsym(driverSO, "rsdHalInit");
 
-    if(!rsdHalInit){
-        ALOGE("Failed to resolve rsdHalInit symbol from %s, error: %s", pszLibName, dlerror());
-        dlclose(hLib);
+    // If we can't find the C variant, we go looking for the C++ version.
+    if (halInit == NULL) {
+        ALOGW("Falling back to find C++ rsdHalInit: %s", dlerror());
+        halInit = (HalSig) dlsym(driverSO,
+                "_Z10rsdHalInitPN7android12renderscript7ContextEjj");
+    }
+
+    if (halInit == NULL) {
+        rsc->setError(RS_ERROR_FATAL_DRIVER, "Failed to find rsdHalInit");
+        dlclose(driverSO);
+        ALOGE("Failed to find rsdHalInit in RS driver: %s, error: %s", libName, dlerror());
         return false;
     }
 
-    if (!rsdHalInit((RsContext)rsc,0,0)) {
-        ALOGE("Hal init failed (%s)",pszLibName);
+    if (!(*halInit)(rsc, 0, 0)) {
+        dlclose(driverSO);
+        ALOGE("%s rsdHalInit() returns FALSE.", libName);
         return false;
     }
 
-    if(phLib){
-        *phLib = hLib;
+    if(mLib){
+        *mLib = driverSO;
     }
 
-    ALOGD("Loaded external library \'%s\' successfully.",pszLibName);
+    ALOGD("Load RS driver \'%s\' successfully.", libName);
     return true;
 }
 
@@ -238,7 +248,6 @@ void Context::displayDebugStats() {
     setFont(lastFont.get());
     mStateFont.setFontColor(oldR, oldG, oldB, oldA);
 }
-
 void * Context::threadProc(void *vrsc) {
     Context *rsc = static_cast<Context *>(vrsc);
 #ifndef ANDROID_RS_SERIALIZE
@@ -253,70 +262,49 @@ void * Context::threadProc(void *vrsc) {
     rsc->props.mLogShadersAttr = getProp("debug.rs.shader.attributes") != 0;
     rsc->props.mLogShadersUniforms = getProp("debug.rs.shader.uniforms") != 0;
     rsc->props.mLogVisual = getProp("debug.rs.visual") != 0;
+    rsc->props.mEnableCpuDriver = getProp("debug.rs.default-CPU-driver") != 0;
+    rsc->props.mEnableGpuRs = getProp("debug.rs.gpu.renderscript") != 0;
+    rsc->props.mEnableGpuFs = getProp("debug.rs.gpu.filterscript") != 0;
+    rsc->props.mEnableGpuRsIntrinsic = getProp("debug.rs.gpu.rsIntrinsic") != 0;
     rsc->props.mDebugMaxThreads = getProp("debug.rs.max-threads");
 
-    void *driverSO = NULL;
+    bool needLoadCpuDriver = true;
 
     // Provide a mechanism for dropping in a different RS driver.
 #ifdef OVERRIDE_RS_DRIVER
 #define XSTR(S) #S
 #define STR(S) XSTR(S)
 #define OVERRIDE_RS_DRIVER_STRING STR(OVERRIDE_RS_DRIVER)
-    if (getProp("debug.rs.default-CPU-driver") != 0) {
-        ALOGE("Skipping override driver and loading default CPU driver");
+    if ((rsc->props.mEnableCpuDriver) || !(rsc->props.mEnableGpuRs ||
+        rsc->props.mEnableGpuFs || rsc->props.mEnableGpuRsIntrinsic)) {
+        ALOGE("Skipping override driver \'%s\' and loading default CPU driver \'libRSDriver.so\'.",
+                 OVERRIDE_RS_DRIVER_STRING);
     } else {
-        driverSO = dlopen(OVERRIDE_RS_DRIVER_STRING, RTLD_LAZY);
-        if (driverSO == NULL) {
-            ALOGE("Failed loading %s: %s", OVERRIDE_RS_DRIVER_STRING,
-                  dlerror());
-            // Continue to attempt loading fallback driver
+        /* For IMG GPGPU solutition, it needs to load CPU driver first to get function tables
+           which will be used for exception handling, then load IMG GPGPU driver. */
+        if (strncmp(OVERRIDE_RS_DRIVER_STRING, "libPVRRS.so", strlen("libPVRRS.so")) == 0) {
+            if (!loadRsDriver(rsc, "libRSDriver.so", NULL))
+                return NULL;
+            if (!loadRsDriver(rsc, "libPVRRS.so", &rsc->mLib)) {
+                ALOGE("fallback to use CPU driver libRSDriver.so");
+            }
+            needLoadCpuDriver = false;
+        } else {
+            //For other vendor GPGPU solutition, load vendor driver directly.
+            if (loadRsDriver(rsc, OVERRIDE_RS_DRIVER_STRING, NULL)) {
+                needLoadCpuDriver = false;
+            } else {
+                ALOGE("Fallback to use CPU driver libRSDriver.so");
+            }
         }
     }
-
 #undef XSTR
 #undef STR
 #endif  // OVERRIDE_RS_DRIVER
 
-    // Attempt to load the reference RS driver (if necessary).
-    if (driverSO == NULL) {
-        driverSO = dlopen("libRSDriver.so", RTLD_LAZY);
-        if (driverSO == NULL) {
-            rsc->setError(RS_ERROR_FATAL_DRIVER, "Failed loading RS driver");
-            ALOGE("Failed loading RS driver: %s", dlerror());
+    if (needLoadCpuDriver) {
+        if (!loadRsDriver(rsc, "libRSDriver.so", NULL))
             return NULL;
-        }
-    }
-
-    // Need to call dlerror() to clear buffer before using it for dlsym().
-    (void) dlerror();
-    typedef bool (*HalSig)(Context*, uint32_t, uint32_t);
-    HalSig halInit = (HalSig) dlsym(driverSO, "rsdHalInit");
-
-    // If we can't find the C variant, we go looking for the C++ version.
-    if (halInit == NULL) {
-        ALOGW("Falling back to find C++ rsdHalInit: %s", dlerror());
-        halInit = (HalSig) dlsym(driverSO,
-                "_Z10rsdHalInitPN7android12renderscript7ContextEjj");
-    }
-
-    if (halInit == NULL) {
-        rsc->setError(RS_ERROR_FATAL_DRIVER, "Failed to find rsdHalInit");
-        dlclose(driverSO);
-        ALOGE("Failed to find rsdHalInit: %s", dlerror());
-        return NULL;
-    }
-
-    if (!(*halInit)(rsc, 0, 0)) {
-        rsc->setError(RS_ERROR_FATAL_DRIVER, "Failed initializing RS Driver");
-        dlclose(driverSO);
-        ALOGE("Hal init failed");
-        return NULL;
-    }
-
-    ALOGD("Loading libPVRRS.so PowerVR Renderscript Driver");
-    if (!rsLoadExternalLibrary(vrsc,"libPVRRS.so",&rsc->mLib))
-    {
-        ALOGE("Failed intializing PowerVR driver");
     }
 
     rsc->mHal.funcs.setPriority(rsc, rsc->mThreadPriority);
