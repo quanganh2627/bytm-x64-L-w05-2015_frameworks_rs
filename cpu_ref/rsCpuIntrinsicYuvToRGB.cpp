@@ -188,7 +188,7 @@ void RsdCpuScriptIntrinsicYuvToRGB::kernel(const RsForEachStubParamStruct *p,
             const uchar *v = pinV + ((p->y >> 1) * strideV);
 
             if(x2 > x1) {
-        #if defined(ARCH_ARM_HAVE_NEON)
+        #if defined(ARCH_ARM_HAVE_NEON) || defined(ARCH_X86_HAVE_SSSE3)
                 int32_t len = (x2 - x1 - 1) >> 3;
                 if(len > 0) {
                     rsdIntrinsicYuv2_K(out, Y, u, v, len, YuvCoeff);
