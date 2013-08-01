@@ -1314,7 +1314,7 @@ public:
 class Script : public BaseObj {
 private:
 
-protected:
+public:
     Script(void *id, sp<RS> rs);
     void forEach(uint32_t slot, sp<const Allocation> in, sp<const Allocation> out,
             const void *v, size_t) const;
@@ -1334,6 +1334,9 @@ protected:
         setVar(index, &v, sizeof(v));
     }
     void setVar(uint32_t index, int32_t v) const {
+        setVar(index, &v, sizeof(v));
+    }
+    void setVar(uint32_t index, uint32_t v) const {
         setVar(index, &v, sizeof(v));
     }
     void setVar(uint32_t index, int64_t v) const {
@@ -1385,7 +1388,7 @@ protected:
  * basic functions. This is not intended to be used directly.
  */
 class ScriptIntrinsic : public Script {
- protected:
+ public:
     sp<const Element> mElement;
     ScriptIntrinsic(sp<RS> rs, int id, sp<const Element> e);
     virtual ~ScriptIntrinsic();
