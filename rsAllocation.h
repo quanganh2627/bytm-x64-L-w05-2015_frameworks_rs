@@ -91,6 +91,7 @@ public:
         };
         mutable DrvState drvState;
 
+        void *IMGPrivateData;
     };
     Hal mHal;
 
