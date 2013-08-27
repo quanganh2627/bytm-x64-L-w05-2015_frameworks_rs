@@ -24,10 +24,12 @@
 namespace android {
 namespace renderscript {
 
+#ifndef RS_COMPATIBILITY_LIB
 class ProgramVertex;
 class ProgramFragment;
 class ProgramRaster;
 class ProgramStore;
+#endif
 
 class ScriptKernelID : public ObjectBase {
 public:
@@ -72,9 +74,10 @@ public:
             char const **exportedPragmaValueList;
 
             int (* root)();
-            bool isThreadable;
         };
         DriverInfo info;
+
+        void * IMGPrivateData;
     };
     Hal mHal;
 
@@ -85,17 +88,20 @@ public:
 
     struct Enviroment_t {
         int64_t mStartTimeMillis;
-        int64_t mLastDtTime;
+        mutable int64_t mLastDtTime;
 
+#ifndef RS_COMPATIBILITY_LIB
         ObjectBaseRef<ProgramVertex> mVertex;
         ObjectBaseRef<ProgramFragment> mFragment;
         ObjectBaseRef<ProgramRaster> mRaster;
         ObjectBaseRef<ProgramStore> mFragmentStore;
+#endif
     };
     Enviroment_t mEnviroment;
 
     void setSlot(uint32_t slot, Allocation *a);
     void setVar(uint32_t slot, const void *val, size_t len);
+    void getVar(uint32_t slot, const void *val, size_t len);
     void setVar(uint32_t slot, const void *val, size_t len, Element *e,
                 const size_t *dims, size_t dimLen);
     void setVarObj(uint32_t slot, ObjectBase *val);

@@ -14,18 +14,14 @@
  * limitations under the License.
  */
 
-#define LOG_TAG "libRS_cpp"
-
-#include <utils/Log.h>
 #include <malloc.h>
 #include <string.h>
 
+#include <rs.h>
 #include "RenderScript.h"
-#include "Element.h"
-#include "Type.h"
 
 using namespace android;
-using namespace renderscriptCpp;
+using namespace RSC;
 
 void Type::calcElementCount() {
     bool hasLod = hasMipmaps();
@@ -64,7 +60,7 @@ void Type::calcElementCount() {
 }
 
 
-Type::Type(void *id, RenderScript *rs) : BaseObj(id, rs) {
+Type::Type(void *id, sp<RS> rs) : BaseObj(id, rs) {
     mDimX = 0;
     mDimY = 0;
     mDimZ = 0;
@@ -96,7 +92,23 @@ void Type::updateFromNative() {
     */
 }
 
-Type::Builder::Builder(RenderScript *rs, sp<const Element> e) {
+sp<const Type> Type::create(sp<RS> rs, sp<const Element> e, uint32_t dimX, uint32_t dimY, uint32_t dimZ) {
+    void * id = rsTypeCreate(rs->getContext(), e->getID(), dimX, dimY, dimZ, false, false, 0);
+    Type *t = new Type(id, rs);
+
+    t->mElement = e;
+    t->mDimX = dimX;
+    t->mDimY = dimY;
+    t->mDimZ = dimZ;
+    t->mDimMipmaps = false;
+    t->mDimFaces = false;
+
+    t->calcElementCount();
+
+    return t;
+}
+
+Type::Builder::Builder(sp<RS> rs, sp<const Element> e) {
     mRS = rs;
     mElement = e;
     mDimX = 0;
@@ -104,6 +116,7 @@ Type::Builder::Builder(RenderScript *rs, sp<const Element> e) {
     mDimZ = 0;
     mDimMipmaps = false;
     mDimFaces = false;
+	mYUV = 0;
 }
 
 void Type::Builder::setX(uint32_t value) {
@@ -118,6 +131,21 @@ void Type::Builder::setY(int value) {
         ALOGE("Values of less than 1 for Dimension Y are not valid.");
     }
     mDimY = value;
+}
+
+void Type::Builder::setZ(int value) {
+    if(value < 1) {
+        ALOGE("Values of less than 1 for Dimension Y are not valid.");
+    }
+    mDimZ = value;
+}
+
+void Type::Builder::setYUVFormat(uint32_t value) {
+    if(!(value == 0x11 || value == 0x32315659)) {
+        ALOGE("Invalide format for YUV allocation. %d", value);
+		return;
+    }
+    mYUV = value;
 }
 
 void Type::Builder::setMipmaps(bool value) {
@@ -148,8 +176,8 @@ sp<const Type> Type::Builder::create() {
         }
     }
 
-    void * id = rsTypeCreate(mRS->mContext, mElement->getID(), mDimX, mDimY, mDimZ,
-            mDimMipmaps, mDimFaces);
+    void * id = rsTypeCreate(mRS->getContext(), mElement->getID(), mDimX, mDimY, mDimZ,
+            mDimMipmaps, mDimFaces, mYUV);
     Type *t = new Type(id, mRS);
     t->mElement = mElement;
     t->mDimX = mDimX;
