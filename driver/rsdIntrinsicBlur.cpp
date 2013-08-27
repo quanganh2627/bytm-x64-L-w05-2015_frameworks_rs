@@ -29,6 +29,8 @@ struct ConvolveParams {
     short ip[104];
     float radius;
     int iradius;
+    void **scratch;
+    size_t *scratchSize;
     ObjectBaseRef<Allocation> alloc;
 };
 
@@ -114,7 +116,7 @@ static void OneVF(float4 *out,
                   const uchar *ptrIn, int iStride, const float* gPtr, int ct,
                   int x1, int x2) {
 
-#if defined(ARCH_ARM_HAVE_NEON) || defined(ARCH_X86_HAVE_SSSE3)
+#if defined(ARCH_ARM_HAVE_NEON)
     {
         int t = (x2 - x1);
         t &= ~1;
@@ -139,6 +141,7 @@ static void OneVF(float4 *out,
         out->xyzw = blurredPixel;
         x1++;
         out++;
+        gPtr++;
     }
 }
 
@@ -161,7 +164,8 @@ static void OneH(const RsForEachStubParamStruct *p, uchar4 *out, int32_t x,
 static void Blur_uchar4(const RsForEachStubParamStruct *p,
                                     uint32_t xstart, uint32_t xend,
                                     uint32_t instep, uint32_t outstep) {
-    float buf[4 * 2048];
+    float stackbuf[4 * 2048];
+    float *buf = &stackbuf[0];
     ConvolveParams *cp = (ConvolveParams *)p->usr;
     if (!cp->alloc.get()) {
         ALOGE("Blur executed without input, skipping");
@@ -174,7 +178,15 @@ static void Blur_uchar4(const RsForEachStubParamStruct *p,
     uint32_t x1 = xstart;
     uint32_t x2 = xend;
 
+    if (p->dimX > 2048) {
+        if ((p->dimX > cp->scratchSize[p->lid]) || !cp->scratch[p->lid]) {
+            cp->scratch[p->lid] = realloc(cp->scratch[p->lid], p->dimX * 16);
+            cp->scratchSize[p->lid] = p->dimX;
+        }
+        buf = (float *)cp->scratch[p->lid];
+    }
     float4 *fout = (float4 *)buf;
+
     int y = p->y;
     uint32_t vx1 = x1;
     uint32_t vx2 = x2;
@@ -206,7 +218,7 @@ static void Blur_uchar4(const RsForEachStubParamStruct *p,
         out++;
         x1++;
     }
-#if defined(ARCH_ARM_HAVE_NEON) || defined(ARCH_X86_HAVE_SSSE3)
+#if defined(ARCH_ARM_HAVE_NEON)
     if ((x1 + cp->iradius) < x2) {
         rsdIntrinsicBlurHF_K(out, ((float4 *)buf) - cp->iradius, cp->fp, cp->iradius * 2 + 1, x1, x2 - cp->iradius);
         out += (x2 - cp->iradius) - x1;
@@ -221,17 +233,51 @@ static void Blur_uchar4(const RsForEachStubParamStruct *p,
 
 }
 
-void * rsdIntrinsic_InitBlur(const android::renderscript::Context *dc,
+static void Destroy(const Context *rsc, const Script *script, void * intrinsicData) {
+    RsdHal * dc = (RsdHal *)rsc->mHal.drv;
+    ConvolveParams *cp = (ConvolveParams *)intrinsicData;
+
+    if (cp) {
+        if (cp->scratch) {
+            for (size_t i = 0; i < dc->mWorkers.mCount + 1; i++) {
+                if (cp->scratch[i]) {
+                    free(cp->scratch[i]);
+                }
+            }
+            free(cp->scratch);
+        }
+        if (cp->scratchSize) {
+            free(cp->scratchSize);
+        }
+        free(cp);
+    }
+}
+
+void * rsdIntrinsic_InitBlur(const android::renderscript::Context *rsc,
                                     android::renderscript::Script *script,
                                     RsdIntriniscFuncs_t *funcs) {
+
+    RsdHal * dc = (RsdHal *)rsc->mHal.drv;
 
     script->mHal.info.exportedVariableCount = 2;
     funcs->setVarObj = Blur_Bind;
     funcs->setVar = Blur_SetVar;
     funcs->root = Blur_uchar4;
+    funcs->destroy = Destroy;
 
     ConvolveParams *cp = (ConvolveParams *)calloc(1, sizeof(ConvolveParams));
+    if (!cp) {
+        return NULL;
+    }
+
     cp->radius = 5;
+    cp->scratch = (void **)calloc(dc->mWorkers.mCount + 1, sizeof(void *));
+    cp->scratchSize = (size_t *)calloc(dc->mWorkers.mCount + 1, sizeof(size_t));
+    if (!cp->scratch || !cp->scratchSize) {
+        Destroy(rsc, script, cp);
+        return NULL;
+    }
+
     ComputeGaussianWeights(cp);
     return cp;
 }

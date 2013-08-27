@@ -75,8 +75,6 @@ public:
             bool isThreadable;
         };
         DriverInfo info;
-
-        void * IMGPrivateData;
     };
     Hal mHal;
 

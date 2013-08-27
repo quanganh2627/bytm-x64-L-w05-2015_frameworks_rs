@@ -186,10 +186,6 @@ public:
         bool mLogShadersAttr;
         bool mLogShadersUniforms;
         bool mLogVisual;
-        bool mEnableCpuDriver;
-        bool mEnableGpuRs;
-        bool mEnableGpuFs;
-        bool mEnableGpuRsIntrinsic;
         uint32_t mDebugMaxThreads;
     } props;
 
@@ -273,7 +269,6 @@ private:
     uint32_t mAverageFPSFrameCount;
     uint64_t mAverageFPSStartTime;
     uint32_t mAverageFPS;
-    void    *mLib;
 };
 
 } // renderscript

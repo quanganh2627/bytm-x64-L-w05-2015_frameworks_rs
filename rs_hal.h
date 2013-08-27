@@ -47,9 +47,6 @@ class FBOCache;
 
 typedef void *(*RsHalSymbolLookupFunc)(void *usrptr, char const *symbolName);
 
-/* External C library interface for rsdHalInit call. */
-typedef bool (*RsHalInitFunc)(RsContext context, uint32_t version_major, uint32_t version_minor);
-
 typedef struct {
     const void *in;
     void *out;
@@ -61,6 +58,7 @@ typedef struct {
     uint32_t lod;
     RsAllocationCubemapFace face;
     uint32_t ar[16];
+    uint32_t lid;
 
     uint32_t dimX;
     uint32_t dimY;

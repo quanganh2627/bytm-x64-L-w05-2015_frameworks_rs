@@ -74,7 +74,6 @@ public:
             mutable uint32_t strideLOD0;
         } drvState;
 
-        void * IMGPrivateData;
     };
     Hal mHal;
 

@@ -38,50 +38,6 @@ using namespace android::renderscript;
 pthread_mutex_t Context::gInitMutex = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t Context::gLibMutex = PTHREAD_MUTEX_INITIALIZER;
 
-/*
- * Load RS driver and initialize with rsdHalInit function.
- */
-static bool loadRsDriver(Context *rsc, const char *libName, void **mLib) {
-    // Attempt to load the RS driver.
-    void *driverSO = dlopen(libName, RTLD_LAZY);
-    if(driverSO == NULL) {
-        ALOGE("Failed to load RS driver: %s (error: %s)", libName, dlerror());
-        return false;
-    }
-
-    // Need to call dlerror() to clear buffer before using it for dlsym().
-    (void) dlerror();
-    typedef bool (*HalSig)(Context*, uint32_t, uint32_t);
-    HalSig halInit = (HalSig) dlsym(driverSO, "rsdHalInit");
-
-    // If we can't find the C variant, we go looking for the C++ version.
-    if (halInit == NULL) {
-        ALOGW("Falling back to find C++ rsdHalInit: %s", dlerror());
-        halInit = (HalSig) dlsym(driverSO,
-                "_Z10rsdHalInitPN7android12renderscript7ContextEjj");
-    }
-
-    if (halInit == NULL) {
-        rsc->setError(RS_ERROR_FATAL_DRIVER, "Failed to find rsdHalInit");
-        dlclose(driverSO);
-        ALOGE("Failed to find rsdHalInit in RS driver: %s, error: %s", libName, dlerror());
-        return false;
-    }
-
-    if (!(*halInit)(rsc, 0, 0)) {
-        dlclose(driverSO);
-        ALOGE("%s rsdHalInit() returns FALSE.", libName);
-        return false;
-    }
-
-    if(mLib){
-        *mLib = driverSO;
-    }
-
-    ALOGD("Load RS driver \'%s\' successfully.", libName);
-    return true;
-}
-
 bool Context::initGLThread() {
     pthread_mutex_lock(&gInitMutex);
 
@@ -248,6 +204,7 @@ void Context::displayDebugStats() {
     setFont(lastFont.get());
     mStateFont.setFontColor(oldR, oldG, oldB, oldA);
 }
+
 void * Context::threadProc(void *vrsc) {
     Context *rsc = static_cast<Context *>(vrsc);
 #ifndef ANDROID_RS_SERIALIZE
@@ -262,51 +219,65 @@ void * Context::threadProc(void *vrsc) {
     rsc->props.mLogShadersAttr = getProp("debug.rs.shader.attributes") != 0;
     rsc->props.mLogShadersUniforms = getProp("debug.rs.shader.uniforms") != 0;
     rsc->props.mLogVisual = getProp("debug.rs.visual") != 0;
-    rsc->props.mEnableCpuDriver = getProp("debug.rs.default-CPU-driver") != 0;
-    rsc->props.mEnableGpuRs = getProp("debug.rs.gpu.renderscript") != 0;
-    rsc->props.mEnableGpuFs = getProp("debug.rs.gpu.filterscript") != 0;
-    rsc->props.mEnableGpuRsIntrinsic = getProp("debug.rs.gpu.rsIntrinsic") != 0;
     rsc->props.mDebugMaxThreads = getProp("debug.rs.max-threads");
 
-    bool needLoadCpuDriver = true;
+    void *driverSO = NULL;
 
     // Provide a mechanism for dropping in a different RS driver.
 #ifdef OVERRIDE_RS_DRIVER
 #define XSTR(S) #S
 #define STR(S) XSTR(S)
 #define OVERRIDE_RS_DRIVER_STRING STR(OVERRIDE_RS_DRIVER)
-    if ((rsc->props.mEnableCpuDriver) || !(rsc->props.mEnableGpuRs ||
-        rsc->props.mEnableGpuFs || rsc->props.mEnableGpuRsIntrinsic)) {
-        ALOGE("Skipping override driver \'%s\' and loading default CPU driver \'libRSDriver.so\'.",
-                 OVERRIDE_RS_DRIVER_STRING);
+    if (getProp("debug.rs.default-CPU-driver") != 0) {
+        ALOGE("Skipping override driver and loading default CPU driver");
     } else {
-        /* For IMG GPGPU solutition, it needs to load CPU driver first to get function tables
-           which will be used for exception handling, then load IMG GPGPU driver. */
-        if (strncmp(OVERRIDE_RS_DRIVER_STRING, "libPVRRS.so", strlen("libPVRRS.so")) == 0) {
-            if (!loadRsDriver(rsc, "libRSDriver.so", NULL))
-                return NULL;
-            if (!loadRsDriver(rsc, "libPVRRS.so", &rsc->mLib)) {
-                ALOGE("fallback to use CPU driver libRSDriver.so");
-            }
-            needLoadCpuDriver = false;
-        } else {
-            //For other vendor GPGPU solutition, load vendor driver directly.
-            if (loadRsDriver(rsc, OVERRIDE_RS_DRIVER_STRING, NULL)) {
-                needLoadCpuDriver = false;
-            } else {
-                ALOGE("Fallback to use CPU driver libRSDriver.so");
-            }
+        driverSO = dlopen(OVERRIDE_RS_DRIVER_STRING, RTLD_LAZY);
+        if (driverSO == NULL) {
+            ALOGE("Failed loading %s: %s", OVERRIDE_RS_DRIVER_STRING,
+                  dlerror());
+            // Continue to attempt loading fallback driver
         }
     }
+
 #undef XSTR
 #undef STR
 #endif  // OVERRIDE_RS_DRIVER
 
-    if (needLoadCpuDriver) {
-        if (!loadRsDriver(rsc, "libRSDriver.so", NULL))
+    // Attempt to load the reference RS driver (if necessary).
+    if (driverSO == NULL) {
+        driverSO = dlopen("libRSDriver.so", RTLD_LAZY);
+        if (driverSO == NULL) {
+            rsc->setError(RS_ERROR_FATAL_DRIVER, "Failed loading RS driver");
+            ALOGE("Failed loading RS driver: %s", dlerror());
             return NULL;
+        }
     }
 
+    // Need to call dlerror() to clear buffer before using it for dlsym().
+    (void) dlerror();
+    typedef bool (*HalSig)(Context*, uint32_t, uint32_t);
+    HalSig halInit = (HalSig) dlsym(driverSO, "rsdHalInit");
+
+    // If we can't find the C variant, we go looking for the C++ version.
+    if (halInit == NULL) {
+        ALOGW("Falling back to find C++ rsdHalInit: %s", dlerror());
+        halInit = (HalSig) dlsym(driverSO,
+                "_Z10rsdHalInitPN7android12renderscript7ContextEjj");
+    }
+
+    if (halInit == NULL) {
+        rsc->setError(RS_ERROR_FATAL_DRIVER, "Failed to find rsdHalInit");
+        dlclose(driverSO);
+        ALOGE("Failed to find rsdHalInit: %s", dlerror());
+        return NULL;
+    }
+
+    if (!(*halInit)(rsc, 0, 0)) {
+        rsc->setError(RS_ERROR_FATAL_DRIVER, "Failed initializing RS Driver");
+        dlclose(driverSO);
+        ALOGE("Hal init failed");
+        return NULL;
+    }
     rsc->mHal.funcs.setPriority(rsc, rsc->mThreadPriority);
 
     if (rsc->mIsGraphicsContext) {
@@ -452,7 +423,6 @@ Context::Context() {
     mTargetSdkVersion = 14;
     mDPI = 96;
     mIsContextLite = false;
-    mLib = NULL;
     memset(&watchdog, 0, sizeof(watchdog));
 }
 
@@ -541,12 +511,6 @@ Context::~Context() {
 
         // Global structure cleanup.
         pthread_mutex_lock(&gInitMutex);
-
-        if (mLib) {
-            dlclose(mLib);
-            mLib = NULL;
-        }
-
         if (mDev) {
             mDev->removeContext(this);
             mDev = NULL;
