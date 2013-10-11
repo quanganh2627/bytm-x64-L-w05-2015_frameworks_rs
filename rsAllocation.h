@@ -149,6 +149,7 @@ public:
     void setSurface(const Context *rsc, RsNativeWindow sur);
     void ioSend(const Context *rsc);
     void ioReceive(const Context *rsc);
+    void destroy(const Context *rsc);
 
 protected:
     Vector<const Program *> mToDirtyList;
