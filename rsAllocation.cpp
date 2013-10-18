@@ -471,6 +471,10 @@ void Allocation::ioReceive(const Context *rsc) {
     rsc->mHal.funcs.allocation.ioReceive(rsc, this);
 }
 
+void Allocation::destroy(const Context *rsc) {
+    freeChildrenUnlocked();
+    rsc->mHal.funcs.allocation.destroy(rsc, this);
+}
 
 /////////////////
 //
@@ -672,6 +676,11 @@ void rsi_AllocationIoSend(Context *rsc, RsAllocation valloc) {
 void rsi_AllocationIoReceive(Context *rsc, RsAllocation valloc) {
     Allocation *alloc = static_cast<Allocation *>(valloc);
     alloc->ioReceive(rsc);
+}
+
+void rsi_AllocationDestroy(Context *rsc, RsAllocation valloc) {
+    Allocation *alloc = static_cast<Allocation *>(valloc);
+    alloc->destroy(rsc);
 }
 
 void rsi_Allocation1DRead(Context *rsc, RsAllocation va, uint32_t xoff, uint32_t lod,
