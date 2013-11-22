@@ -209,10 +209,6 @@ public:
         bool mLogShadersAttr;
         bool mLogShadersUniforms;
         bool mLogVisual;
-        bool mEnableCpuDriver;
-        bool mEnableGpuRs;
-        bool mEnableGpuFs;
-        bool mEnableGpuRsIntrinsic;
         uint32_t mDebugMaxThreads;
     } props;
 
@@ -281,7 +277,7 @@ private:
 
     uint32_t runRootScript();
 
-    static bool loadRuntime(const char* filename, Context* rsc, void** mlib);
+    static bool loadRuntime(const char* filename, Context* rsc);
     static void * threadProc(void *);
     static void * helperThreadProc(void *);
 
@@ -301,7 +297,6 @@ private:
     uint32_t mAverageFPSFrameCount;
     uint64_t mAverageFPSStartTime;
     uint32_t mAverageFPS;
-    void    *mLib;
 };
 
 } // renderscript

@@ -83,7 +83,7 @@ void RsdCpuScriptIntrinsic3DLUT::kernel(const RsForEachStubParamStruct *p,
     //ALOGE("strides %zu %zu", stride_y, stride_z);
 
     while (x1 < x2) {
-#if defined(ARCH_ARM_HAVE_NEON)// || defined(ARCH_X86_HAVE_SSSE3)  JROSE - Not yet implemented
+#if defined(ARCH_ARM_HAVE_NEON)
         int32_t len = (x2 - x1 - 1) >> 1;
         if(len > 0) {
             const short neon_constants[] = {

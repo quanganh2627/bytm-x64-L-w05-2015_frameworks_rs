@@ -42,11 +42,6 @@ class Allocation;
 class Script;
 class ScriptC;
 
-/* Dummy Vector classes */
-class Float2 { public: 	float x, y; };
-class Float3 { public: 	float x, y, z; };
-class Float4 { public: 	float x, y, z, w; };
-
 class RS : public android::LightRefBase<RS> {
 
  public:
@@ -561,7 +556,6 @@ public:
         uint32_t mDimZ;
         bool mDimMipmaps;
         bool mDimFaces;
-		uint32_t mYUV;
         sp<const Element> mElement;
 
     public:
@@ -569,10 +563,8 @@ public:
 
         void setX(uint32_t value);
         void setY(int value);
-		void setZ(int value);
         void setMipmaps(bool value);
         void setFaces(bool value);
-		void setYUVFormat(uint32_t value);
         sp<const Type> create();
     };
 
@@ -581,7 +573,7 @@ public:
 class Script : public BaseObj {
 private:
 
-public:
+protected:
     Script(void *id, sp<RS> rs);
     void forEach(uint32_t slot, sp<const Allocation> in, sp<const Allocation> out,
             const void *v, size_t) const;
@@ -601,9 +593,6 @@ public:
         setVar(index, &v, sizeof(v));
     }
     void setVar(uint32_t index, int32_t v) const {
-        setVar(index, &v, sizeof(v));
-    }
-    void setVar(uint32_t index, uint32_t v) const {
         setVar(index, &v, sizeof(v));
     }
     void setVar(uint32_t index, int64_t v) const {
@@ -648,7 +637,7 @@ protected:
 };
 
 class ScriptIntrinsic : public Script {
- public:
+ protected:
     ScriptIntrinsic(sp<RS> rs, int id, sp<const Element> e);
 };
 

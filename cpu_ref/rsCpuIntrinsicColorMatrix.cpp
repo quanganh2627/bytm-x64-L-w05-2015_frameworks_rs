@@ -118,7 +118,7 @@ void RsdCpuScriptIntrinsicColorMatrix::kernel4x4(const RsForEachStubParamStruct 
     uint32_t x2 = xend;
 
     if(x2 > x1) {
-#if defined(ARCH_ARM_HAVE_NEON) || defined(ARCH_X86_HAVE_SSSE3)
+#if defined(ARCH_ARM_HAVE_NEON)
         int32_t len = (x2 - x1) >> 2;
         if(len > 0) {
             rsdIntrinsicColorMatrix4x4_K(out, in, cp->ip, len);
@@ -145,7 +145,7 @@ void RsdCpuScriptIntrinsicColorMatrix::kernel3x3(const RsForEachStubParamStruct 
     uint32_t x2 = xend;
 
     if(x2 > x1) {
-#if defined(ARCH_ARM_HAVE_NEON) || defined(ARCH_X86_HAVE_SSSE3)
+#if defined(ARCH_ARM_HAVE_NEON)
         int32_t len = (x2 - x1) >> 2;
         if(len > 0) {
             rsdIntrinsicColorMatrix3x3_K(out, in, cp->ip, len);
@@ -172,7 +172,7 @@ void RsdCpuScriptIntrinsicColorMatrix::kernelDot(const RsForEachStubParamStruct 
     uint32_t x2 = xend;
 
     if(x2 > x1) {
-#if defined(ARCH_ARM_HAVE_NEON) || defined(ARCH_X86_HAVE_SSSE3)
+#if defined(ARCH_ARM_HAVE_NEON)
         int32_t len = (x2 - x1) >> 2;
         if(len > 0) {
             rsdIntrinsicColorMatrixDot_K(out, in, cp->ip, len);

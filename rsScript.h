@@ -76,8 +76,6 @@ public:
             int (* root)();
         };
         DriverInfo info;
-
-        void * IMGPrivateData;
     };
     Hal mHal;
 

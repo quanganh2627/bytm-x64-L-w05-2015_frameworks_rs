@@ -155,7 +155,7 @@ static void OneVFU4(float4 *out,
                     const uchar *ptrIn, int iStride, const float* gPtr, int ct,
                     int x1, int x2) {
 
-#if defined(ARCH_ARM_HAVE_NEON) || defined(ARCH_X86_HAVE_SSSE3)
+#if defined(ARCH_ARM_HAVE_NEON)
     {
         int t = (x2 - x1);
         t &= ~1;
@@ -207,7 +207,7 @@ static void OneVFU1(float *out,
         len--;
     }
 
-#if defined(ARCH_ARM_HAVE_NEON) || defined(ARCH_X86_HAVE_SSSE3)
+#if defined(ARCH_ARM_HAVE_NEON)
     if (x2 > x1) {
         int t = (x2 - x1) >> 2;
         t &= ~1;
@@ -313,7 +313,7 @@ void RsdCpuScriptIntrinsicBlur::kernelU4(const RsForEachStubParamStruct *p,
         out++;
         x1++;
     }
-#if defined(ARCH_ARM_HAVE_NEON) || defined(ARCH_X86_HAVE_SSSE3)
+#if defined(ARCH_ARM_HAVE_NEON)
     if ((x1 + cp->mIradius) < x2) {
         rsdIntrinsicBlurHFU4_K(out, buf - cp->mIradius, cp->mFp,
                                cp->mIradius * 2 + 1, x1, x2 - cp->mIradius);
@@ -364,7 +364,7 @@ void RsdCpuScriptIntrinsicBlur::kernelU1(const RsForEachStubParamStruct *p,
         out++;
         x1++;
     }
-#if defined(ARCH_ARM_HAVE_NEON) || defined(ARCH_X86_HAVE_SSSE3)
+#if defined(ARCH_ARM_HAVE_NEON)
     if ((x1 + cp->mIradius) < x2) {
         uint32_t len = x2 - (x1 + cp->mIradius);
         len &= ~3;

@@ -459,7 +459,6 @@ bool rsdAllocationInit(const Context *rsc, Allocation *alloc, bool forceZero) {
 
 void rsdAllocationDestroy(const Context *rsc, Allocation *alloc) {
     DrvAllocation *drv = (DrvAllocation *)alloc->mHal.drv;
-    if (!drv) return;
 
 #ifndef RS_COMPATIBILITY_LIB
     if (drv->bufferID) {

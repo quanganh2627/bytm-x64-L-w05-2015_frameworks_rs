@@ -131,7 +131,7 @@ void RsdCpuScriptIntrinsicBlend::kernel(const RsForEachStubParamStruct *p,
     case BLEND_DST:
         break;
     case BLEND_SRC_OVER:
-#if defined(ARCH_ARM_HAVE_NEON) || defined(ARCH_X86_HAVE_SSSE3)
+#if defined(ARCH_ARM_HAVE_NEON)
         if((x1 + 8) < x2) {
             uint32_t len = (x2 - x1) >> 3;
             rsdIntrinsicBlendSrcOver_K(out, in, len);
@@ -148,7 +148,7 @@ void RsdCpuScriptIntrinsicBlend::kernel(const RsForEachStubParamStruct *p,
         }
         break;
     case BLEND_DST_OVER:
-#if defined(ARCH_ARM_HAVE_NEON) || defined(ARCH_X86_HAVE_SSSE3)
+#if defined(ARCH_ARM_HAVE_NEON)
         if((x1 + 8) < x2) {
             uint32_t len = (x2 - x1) >> 3;
             rsdIntrinsicBlendDstOver_K(out, in, len);
@@ -165,7 +165,7 @@ void RsdCpuScriptIntrinsicBlend::kernel(const RsForEachStubParamStruct *p,
         }
         break;
     case BLEND_SRC_IN:
-#if defined(ARCH_ARM_HAVE_NEON) || defined(ARCH_X86_HAVE_SSSE3)
+#if defined(ARCH_ARM_HAVE_NEON)
         if((x1 + 8) < x2) {
             uint32_t len = (x2 - x1) >> 3;
             rsdIntrinsicBlendSrcIn_K(out, in, len);
@@ -181,7 +181,7 @@ void RsdCpuScriptIntrinsicBlend::kernel(const RsForEachStubParamStruct *p,
         }
         break;
     case BLEND_DST_IN:
-#if defined(ARCH_ARM_HAVE_NEON) || defined(ARCH_X86_HAVE_SSSE3)
+#if defined(ARCH_ARM_HAVE_NEON)
         if((x1 + 8) < x2) {
             uint32_t len = (x2 - x1) >> 3;
             rsdIntrinsicBlendDstIn_K(out, in, len);
@@ -197,7 +197,7 @@ void RsdCpuScriptIntrinsicBlend::kernel(const RsForEachStubParamStruct *p,
         }
         break;
     case BLEND_SRC_OUT:
-#if defined(ARCH_ARM_HAVE_NEON) || defined(ARCH_X86_HAVE_SSSE3)
+#if defined(ARCH_ARM_HAVE_NEON)
         if((x1 + 8) < x2) {
             uint32_t len = (x2 - x1) >> 3;
             rsdIntrinsicBlendSrcOut_K(out, in, len);
@@ -213,7 +213,7 @@ void RsdCpuScriptIntrinsicBlend::kernel(const RsForEachStubParamStruct *p,
         }
         break;
     case BLEND_DST_OUT:
-#if defined(ARCH_ARM_HAVE_NEON) || defined(ARCH_X86_HAVE_SSSE3)
+#if defined(ARCH_ARM_HAVE_NEON)
         if((x1 + 8) < x2) {
             uint32_t len = (x2 - x1) >> 3;
             rsdIntrinsicBlendDstOut_K(out, in, len);
@@ -229,7 +229,7 @@ void RsdCpuScriptIntrinsicBlend::kernel(const RsForEachStubParamStruct *p,
         }
         break;
     case BLEND_SRC_ATOP:
-#if defined(ARCH_ARM_HAVE_NEON) || defined(ARCH_X86_HAVE_SSSE3)
+#if defined(ARCH_ARM_HAVE_NEON)
         if((x1 + 8) < x2) {
             uint32_t len = (x2 - x1) >> 3;
             rsdIntrinsicBlendSrcAtop_K(out, in, len);
@@ -247,7 +247,7 @@ void RsdCpuScriptIntrinsicBlend::kernel(const RsForEachStubParamStruct *p,
         }
         break;
     case BLEND_DST_ATOP:
-#if defined(ARCH_ARM_HAVE_NEON) || defined(ARCH_X86_HAVE_SSSE3)
+#if defined(ARCH_ARM_HAVE_NEON)
         if((x1 + 8) < x2) {
             uint32_t len = (x2 - x1) >> 3;
             rsdIntrinsicBlendDstAtop_K(out, in, len);
@@ -265,7 +265,7 @@ void RsdCpuScriptIntrinsicBlend::kernel(const RsForEachStubParamStruct *p,
         }
         break;
     case BLEND_XOR:
-#if defined(ARCH_ARM_HAVE_NEON) || defined(ARCH_X86_HAVE_SSSE3)
+#if defined(ARCH_ARM_HAVE_NEON)
         if((x1 + 8) < x2) {
             uint32_t len = (x2 - x1) >> 3;
             rsdIntrinsicBlendXor_K(out, in, len);
@@ -287,7 +287,7 @@ void RsdCpuScriptIntrinsicBlend::kernel(const RsForEachStubParamStruct *p,
         rsAssert(false);
         break;
     case BLEND_MULTIPLY:
-#if defined(ARCH_ARM_HAVE_NEON) || defined(ARCH_X86_HAVE_SSSE3)
+#if defined(ARCH_ARM_HAVE_NEON)
         if((x1 + 8) < x2) {
             uint32_t len = (x2 - x1) >> 3;
             rsdIntrinsicBlendMultiply_K(out, in, len);
@@ -378,7 +378,7 @@ void RsdCpuScriptIntrinsicBlend::kernel(const RsForEachStubParamStruct *p,
         rsAssert(false);
         break;
     case BLEND_ADD:
-#if defined(ARCH_ARM_HAVE_NEON) || defined(ARCH_X86_HAVE_SSSE3)
+#if defined(ARCH_ARM_HAVE_NEON)
         if((x1 + 8) < x2) {
             uint32_t len = (x2 - x1) >> 3;
             rsdIntrinsicBlendAdd_K(out, in, len);
@@ -397,7 +397,7 @@ void RsdCpuScriptIntrinsicBlend::kernel(const RsForEachStubParamStruct *p,
         }
         break;
     case BLEND_SUBTRACT:
-#if defined(ARCH_ARM_HAVE_NEON) || defined(ARCH_X86_HAVE_SSSE3)
+#if defined(ARCH_ARM_HAVE_NEON)
         if((x1 + 8) < x2) {
             uint32_t len = (x2 - x1) >> 3;
             rsdIntrinsicBlendSub_K(out, in, len);

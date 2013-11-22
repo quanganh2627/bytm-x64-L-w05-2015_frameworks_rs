@@ -40,19 +40,15 @@ RS::RS() {
 RS::~RS() {
     mMessageRun = false;
 
-    if (mContext) {
-        rsContextDeinitToClient(mContext);
+    rsContextDeinitToClient(mContext);
 
-        void *res = NULL;
-        int status = pthread_join(mMessageThreadId, &res);
+    void *res = NULL;
+    int status = pthread_join(mMessageThreadId, &res);
 
-        rsContextDestroy(mContext);
-        mContext = NULL;
-    }
-    if (mDev) {
-        rsDeviceDestroy(mDev);
-        mDev = NULL;
-    }
+    rsContextDestroy(mContext);
+    mContext = NULL;
+    rsDeviceDestroy(mDev);
+    mDev = NULL;
 }
 
 bool RS::init(bool forceCpu, bool synchronous) {

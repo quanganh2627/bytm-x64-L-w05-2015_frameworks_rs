@@ -116,7 +116,6 @@ Type::Builder::Builder(sp<RS> rs, sp<const Element> e) {
     mDimZ = 0;
     mDimMipmaps = false;
     mDimFaces = false;
-	mYUV = 0;
 }
 
 void Type::Builder::setX(uint32_t value) {
@@ -131,21 +130,6 @@ void Type::Builder::setY(int value) {
         ALOGE("Values of less than 1 for Dimension Y are not valid.");
     }
     mDimY = value;
-}
-
-void Type::Builder::setZ(int value) {
-    if(value < 1) {
-        ALOGE("Values of less than 1 for Dimension Y are not valid.");
-    }
-    mDimZ = value;
-}
-
-void Type::Builder::setYUVFormat(uint32_t value) {
-    if(!(value == 0x11 || value == 0x32315659)) {
-        ALOGE("Invalide format for YUV allocation. %d", value);
-		return;
-    }
-    mYUV = value;
 }
 
 void Type::Builder::setMipmaps(bool value) {
@@ -177,7 +161,7 @@ sp<const Type> Type::Builder::create() {
     }
 
     void * id = rsTypeCreate(mRS->getContext(), mElement->getID(), mDimX, mDimY, mDimZ,
-            mDimMipmaps, mDimFaces, mYUV);
+            mDimMipmaps, mDimFaces, 0);
     Type *t = new Type(id, mRS);
     t->mElement = mElement;
     t->mDimX = mDimX;

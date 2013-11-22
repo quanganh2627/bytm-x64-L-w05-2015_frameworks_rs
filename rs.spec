@@ -82,11 +82,6 @@ AllocationSetSurface {
     sync
     }
 
-AllocationDestroy {
-    direct
-    param RsAllocation alloc
-    }
-
 ContextFinish {
     sync
     }
