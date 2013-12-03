@@ -1710,7 +1710,7 @@ class ScriptIntrinsicHistogram : public ScriptIntrinsic {
      *
      * @return ScriptIntrinsicHistogram
      */
-    static sp<ScriptIntrinsicHistogram> create(sp<RS> rs);
+    static sp<ScriptIntrinsicHistogram> create(sp<RS> rs, sp<const Element> e);
     /**
      * Set the output of the histogram.  32 bit integer types are
      * supported.
