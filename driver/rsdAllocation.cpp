@@ -356,9 +356,37 @@ static size_t AllocationBuildPointerTable(const Context *rsc, const Allocation *
     return allocSize;
 }
 
-static uint8_t* allocAlignedMemory(size_t allocSize, bool forceZero) {
-    // We align all allocations to a 16-byte boundary.
-    uint8_t* ptr = (uint8_t *)memalign(16, allocSize);
+static size_t computeAlignment(size_t elementSize) {
+    // Some architectures (e.g. SSE/AVX with the [v]movap*
+    // instructions) have alignment requirements beyond 16-byte,
+    // but that isn't captured by the driver framework.
+    // As RS assumes data are allocated element-wise aligned, we just need
+    // to ensure the allocated one is aligned to the one rounded to
+    // multiple of sizeof(void *) and power of 2.
+
+    size_t alignment = elementSize;
+    size_t ptrSize = sizeof(void *);
+    // Round alignment to the nearest power of 2.
+    alignment--;
+    alignment |= alignment >> 1;
+    alignment |= alignment >> 2;
+    alignment |= alignment >> 4;
+    alignment |= alignment >> 8;
+    alignment |= alignment >> 16;
+#if __SIZEOF_SIZE_T__ == 8
+    alignment |= alignment >> 32;
+#endif
+    alignment++;
+    // Round alignment to multiple of sizeof(void *).
+    alignment = ((alignment + ptrSize - 1) / ptrSize) * ptrSize;
+
+    // Reducing alignment below 16 bytes may actually reduce performance with minimal efficiency gains
+    return (alignment > 16 ? alignment : 16);
+}
+
+static uint8_t* allocAlignedMemory(size_t allocSize, bool forceZero, size_t alignment) {
+
+    uint8_t* ptr = (uint8_t *)memalign(alignment, allocSize);
     if (!ptr) {
         return NULL;
     }
@@ -397,13 +425,15 @@ bool rsdAllocationInit(const Context *rsc, Allocation *alloc, bool forceZero) {
             return false;
         }
 
-        // rows must be 16-byte aligned
+        // rows must be naturally aligned
         // validate that here, otherwise fall back to not use the user-backed allocation
-        if (((alloc->getType()->getDimX() * alloc->getType()->getElement()->getSizeBytes()) % 16) != 0) {
+        size_t alignment = computeAlignment(alloc->getType()->getElementSizeBytes());
+
+        if (((alloc->getType()->getDimX() * alloc->getType()->getElement()->getSizeBytes()) % alignment) != 0) {
             ALOGV("User-backed allocation failed stride requirement, falling back to separate allocation");
             drv->useUserProvidedPtr = false;
 
-            ptr = allocAlignedMemory(allocSize, forceZero);
+            ptr = allocAlignedMemory(allocSize, forceZero, alignment);
             if (!ptr) {
                 alloc->mHal.drv = NULL;
                 free(drv);
@@ -415,7 +445,8 @@ bool rsdAllocationInit(const Context *rsc, Allocation *alloc, bool forceZero) {
             ptr = (uint8_t*)alloc->mHal.state.userProvidedPtr;
         }
     } else {
-        ptr = allocAlignedMemory(allocSize, forceZero);
+        size_t alignment = computeAlignment(alloc->getType()->getElementSizeBytes());
+        ptr = allocAlignedMemory(allocSize, forceZero, alignment);
         if (!ptr) {
             alloc->mHal.drv = NULL;
             free(drv);
@@ -468,6 +499,7 @@ bool rsdAllocationInit(const Context *rsc, Allocation *alloc, bool forceZero) {
 
 void rsdAllocationDestroy(const Context *rsc, Allocation *alloc) {
     DrvAllocation *drv = (DrvAllocation *)alloc->mHal.drv;
+    if (!drv) return;
 
 #ifndef RS_COMPATIBILITY_LIB
     if (drv->bufferID) {
