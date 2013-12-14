@@ -241,15 +241,14 @@ void Context::displayDebugStats() {
 #endif
 }
 
-/*
- * Load RS driver and initialize with rsdHalInit function.
- */
-bool Context::loadRuntime(const char* filename, Context* rsc, void **mLib) {
+bool Context::loadRuntime(const char* filename, Context* rsc) {
+
+    // TODO: store the driverSO somewhere so we can dlclose later
     void *driverSO = NULL;
 
     driverSO = dlopen(filename, RTLD_LAZY);
     if (driverSO == NULL) {
-        ALOGE("Failed to load RS driver: %s (error: %s)", filename, dlerror());
+        ALOGE("Failed loading RS driver: %s", dlerror());
         return false;
     }
 
@@ -267,21 +266,18 @@ bool Context::loadRuntime(const char* filename, Context* rsc, void **mLib) {
 
     if (halInit == NULL) {
         dlclose(driverSO);
-        ALOGE("Failed to find rsdHalInit in RS driver: %s, error: %s", filename, dlerror());
+        ALOGE("Failed to find rsdHalInit: %s", dlerror());
         return false;
     }
 
     if (!(*halInit)(rsc, 0, 0)) {
         dlclose(driverSO);
-        ALOGE("%s Hal init failed.", filename);
+        ALOGE("Hal init failed");
         return false;
     }
+
     //validate HAL struct
-    // store the driverSO so we can dlclose later
-    if(mLib){
-        *mLib = driverSO;
-    }
-    ALOGD("Load RS driver \'%s\' successfully.", filename);
+
 
     return true;
 }
@@ -311,10 +307,6 @@ void * Context::threadProc(void *vrsc) {
     rsc->props.mLogShadersAttr = getProp("debug.rs.shader.attributes") != 0;
     rsc->props.mLogShadersUniforms = getProp("debug.rs.shader.uniforms") != 0;
     rsc->props.mLogVisual = getProp("debug.rs.visual") != 0;
-    rsc->props.mEnableCpuDriver = getProp("debug.rs.default-CPU-driver") != 0;
-    rsc->props.mEnableGpuRs = getProp("debug.rs.gpu.renderscript") != 0;
-    rsc->props.mEnableGpuFs = getProp("debug.rs.gpu.filterscript") != 0;
-    rsc->props.mEnableGpuRsIntrinsic = getProp("debug.rs.gpu.rsIntrinsic") != 0;
     rsc->props.mDebugMaxThreads = getProp("debug.rs.max-threads");
 
     bool loadDefault = true;
@@ -326,16 +318,15 @@ void * Context::threadProc(void *vrsc) {
 #define STR(S) XSTR(S)
 #define OVERRIDE_RS_DRIVER_STRING STR(OVERRIDE_RS_DRIVER)
 
-    if ((rsc->props.mEnableCpuDriver) || !(rsc->props.mEnableGpuRs ||
-        rsc->props.mEnableGpuFs || rsc->props.mEnableGpuRsIntrinsic)) {
-        ALOGE("Skipping override driver \'%s\' and loading default CPU driver \'libRSDriver.so\'.",
-                 OVERRIDE_RS_DRIVER_STRING);
+    if (getProp("debug.rs.default-CPU-driver") != 0) {
+        ALOGE("Skipping override driver and loading default CPU driver");
     } else if (rsc->mForceCpu) {
         ALOGV("Application requested CPU execution");
     } else if (rsc->getContextType() == RS_CONTEXT_TYPE_DEBUG) {
         ALOGV("Application requested debug context");
     } else {
-        if (loadRuntime(OVERRIDE_RS_DRIVER_STRING, rsc, &rsc->mLib)) {
+        if (loadRuntime(OVERRIDE_RS_DRIVER_STRING, rsc)) {
+            ALOGE("Successfully loaded runtime: %s", OVERRIDE_RS_DRIVER_STRING);
             loadDefault = false;
         } else {
             ALOGE("Failed to load runtime %s, loading default", OVERRIDE_RS_DRIVER_STRING);
@@ -347,7 +338,8 @@ void * Context::threadProc(void *vrsc) {
 #endif  // OVERRIDE_RS_DRIVER
 
     if (loadDefault) {
-        if (!loadRuntime("libRSDriver.so", rsc, NULL)) {
+        if (!loadRuntime("libRSDriver.so", rsc)) {
+            ALOGE("Failed to load default runtime!");
             rsc->setError(RS_ERROR_FATAL_DRIVER, "Failed loading RS driver");
             return NULL;
         }
@@ -517,7 +509,6 @@ Context::Context() {
     mTargetSdkVersion = 14;
     mDPI = 96;
     mIsContextLite = false;
-    mLib = NULL;
     memset(&watchdog, 0, sizeof(watchdog));
     mForceCpu = false;
     mContextType = RS_CONTEXT_TYPE_NORMAL;
@@ -584,12 +575,6 @@ bool Context::initContext(Device *dev, const RsSurfaceConfig *sc) {
     timerSet(RS_TIMER_INTERNAL);
     if (mSynchronous) {
         threadProc(this);
-
-        if (mError != RS_ERROR_NONE) {
-            ALOGE("Errors during thread init (sync mode)");
-            return false;
-        }
-
     } else {
         status = pthread_create(&mThreadId, &threadAttr, threadProc, this);
         if (status) {
@@ -621,18 +606,12 @@ Context::~Context() {
         int status = pthread_join(mThreadId, &res);
         rsAssert(mExit);
 
-        if (mHal.funcs.shutdownDriver && mHal.drv) {
+        if (mHal.funcs.shutdownDriver) {
             mHal.funcs.shutdownDriver(this);
         }
 
         // Global structure cleanup.
         pthread_mutex_lock(&gInitMutex);
-
-        if (mLib) {
-            dlclose(mLib);
-            mLib = NULL;
-        }
-
         if (mDev) {
             mDev->removeContext(this);
             mDev = NULL;

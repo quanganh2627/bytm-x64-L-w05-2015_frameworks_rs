@@ -52,12 +52,6 @@ ifeq ($(ARCH_X86_HAVE_SSE2), true)
     # so far, there is no such device with SSE2 only.
     ifeq ($(ARCH_X86_HAVE_SSE3), true)
         clcore_x86_files += arch/x86_sse3.ll
-        clcore_x86_files += arch/x86_v8_vectorizer.ll
-    endif
-
-    ifeq ($(ARCH_X86_HAVE_SSE4), true)
-        # adding these transposes is optional but it will impact the performance on SSE4
-        clcore_x86_files += arch/x86_v8_vectorizer_sse4_transposes.ll
     endif
 endif
 

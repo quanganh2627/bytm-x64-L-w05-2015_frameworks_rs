@@ -54,19 +54,15 @@ RS::~RS() {
     if (mInit == true) {
         mMessageRun = false;
 
-        if (mContext) {
-            RS::dispatch->ContextDeinitToClient(mContext);
+        RS::dispatch->ContextDeinitToClient(mContext);
 
-            void *res = NULL;
-            int status = pthread_join(mMessageThreadId, &res);
+        void *res = NULL;
+        int status = pthread_join(mMessageThreadId, &res);
 
-            RS::dispatch->ContextDestroy(mContext);
-            mContext = NULL;
-        }
-        if (mDev) {
-            RS::dispatch->DeviceDestroy(mDev);
-            mDev = NULL;
-        }
+        RS::dispatch->ContextDestroy(mContext);
+        mContext = NULL;
+        RS::dispatch->DeviceDestroy(mDev);
+        mDev = NULL;
     }
 }
 

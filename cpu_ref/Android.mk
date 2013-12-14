@@ -47,12 +47,6 @@ ifeq ($(ARCH_X86_HAVE_SSE2), true)
     LOCAL_CFLAGS += -DARCH_X86_HAVE_SSE2
 endif
 
-ifeq ($(ARCH_X86_HAVE_SSSE3),true)
-    LOCAL_CFLAGS += -DARCH_X86_HAVE_SSSE3
-    LOCAL_SRC_FILES+= \
-       rsCpuIntrinsics_x86.c
-endif
-
 LOCAL_SHARED_LIBRARIES += libRS libcutils libutils liblog libsync
 LOCAL_SHARED_LIBRARIES += libbcc libbcinfo
 
