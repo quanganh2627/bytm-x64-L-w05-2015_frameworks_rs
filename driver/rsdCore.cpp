@@ -191,6 +191,7 @@ extern "C" bool rsdHalInit(RsContext c, uint32_t version_major,
     if (!dc->mCpuRef) {
         ALOGE("RsdCpuReference::create for driver hal failed.");
         free(dc);
+        rsc->mHal.drv = NULL;
         return false;
     }
 

@@ -155,7 +155,7 @@ static void OneVFU4(float4 *out,
                     const uchar *ptrIn, int iStride, const float* gPtr, int ct,
                     int x1, int x2) {
 
-#if defined(ARCH_ARM_HAVE_VFP)
+#if defined(ARCH_ARM_HAVE_VFP) || defined(ARCH_X86_HAVE_SSSE3)
     if (gArchUseSIMD) {
         int t = (x2 - x1);
         t &= ~1;
@@ -207,7 +207,7 @@ static void OneVFU1(float *out,
         len--;
     }
 
-#if defined(ARCH_ARM_HAVE_VFP)
+#if defined(ARCH_ARM_HAVE_VFP) || defined(ARCH_X86_HAVE_SSSE3)
     if (gArchUseSIMD && (x2 > x1)) {
         int t = (x2 - x1) >> 2;
         t &= ~1;
@@ -289,10 +289,12 @@ void RsdCpuScriptIntrinsicBlur::kernelU4(const RsForEachStubParamStruct *p,
 
     if (p->dimX > 2048) {
         if ((p->dimX > cp->mScratchSize[p->lid]) || !cp->mScratch[p->lid]) {
-            cp->mScratch[p->lid] = realloc(cp->mScratch[p->lid], p->dimX * 16);
+            // Pad the side of the allocation by one unit to allow alignment later
+            cp->mScratch[p->lid] = realloc(cp->mScratch[p->lid], (p->dimX + 1) * 16);
             cp->mScratchSize[p->lid] = p->dimX;
         }
-        buf = (float4 *)cp->mScratch[p->lid];
+        // realloc only aligns to 8 bytes so we manually align to 16.
+        buf = (float4 *) ((((intptr_t)cp->mScratch[p->lid]) + 15) & ~0xf);
     }
     float4 *fout = (float4 *)buf;
     int y = p->y;
@@ -313,7 +315,7 @@ void RsdCpuScriptIntrinsicBlur::kernelU4(const RsForEachStubParamStruct *p,
         out++;
         x1++;
     }
-#if defined(ARCH_ARM_HAVE_VFP)
+#if defined(ARCH_ARM_HAVE_VFP) || defined(ARCH_X86_HAVE_SSSE3)
     if (gArchUseSIMD) {
         if ((x1 + cp->mIradius) < x2) {
             rsdIntrinsicBlurHFU4_K(out, buf - cp->mIradius, cp->mFp,
@@ -366,7 +368,7 @@ void RsdCpuScriptIntrinsicBlur::kernelU1(const RsForEachStubParamStruct *p,
         out++;
         x1++;
     }
-#if defined(ARCH_ARM_HAVE_VFP)
+#if defined(ARCH_ARM_HAVE_VFP) || defined(ARCH_X86_HAVE_SSSE3)
     if (gArchUseSIMD) {
         if ((x1 + cp->mIradius) < x2) {
             uint32_t len = x2 - (x1 + cp->mIradius);
@@ -407,6 +409,8 @@ RsdCpuScriptIntrinsicBlur::RsdCpuScriptIntrinsicBlur(RsdCpuReferenceImpl *ctx,
 
     mScratch = new void *[mCtx->getThreadCount()];
     mScratchSize = new size_t[mCtx->getThreadCount()];
+    memset(mScratch, 0, sizeof(void *) * mCtx->getThreadCount());
+    memset(mScratchSize, 0, sizeof(size_t) * mCtx->getThreadCount());
 
     ComputeGaussianWeights();
 }

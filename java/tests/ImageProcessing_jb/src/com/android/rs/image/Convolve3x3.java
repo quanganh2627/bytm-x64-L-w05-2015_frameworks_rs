@@ -64,7 +64,10 @@ public class Convolve3x3 extends TestBase {
     }
 
     public void runTest() {
-        mScript.forEach_root(mOutPixelsAllocation);
+        if (mUseIntrinsic) {
+            mIntrinsic.forEach(mOutPixelsAllocation);
+        } else {
+            mScript.forEach_root(mOutPixelsAllocation);
+        }
     }
-
 }
