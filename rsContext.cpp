@@ -311,11 +311,26 @@ void * Context::threadProc(void *vrsc) {
     rsc->props.mLogShadersAttr = getProp("debug.rs.shader.attributes") != 0;
     rsc->props.mLogShadersUniforms = getProp("debug.rs.shader.uniforms") != 0;
     rsc->props.mLogVisual = getProp("debug.rs.visual") != 0;
-    rsc->props.mEnableCpuDriver = getProp("debug.rs.default-CPU-driver") != 0;
-    rsc->props.mEnableGpuRs = getProp("debug.rs.gpu.renderscript") != 0;
-    rsc->props.mEnableGpuFs = getProp("debug.rs.gpu.filterscript") != 0;
-    rsc->props.mEnableGpuRsIntrinsic = getProp("debug.rs.gpu.rsIntrinsic") != 0;
     rsc->props.mDebugMaxThreads = getProp("debug.rs.max-threads");
+
+    rsc->props.mEnableCpuDriver = getProp("debug.rs.default-CPU-driver") != 0;
+    rsc->props.mEnableGpuRs = getProp("rs.gpu.renderscript") != 0;
+    rsc->props.mEnableGpuFs = getProp("rs.gpu.filterscript") != 0;
+    rsc->props.mEnableGpuRsIntrinsic = getProp("rs.gpu.rsIntrinsic") != 0;
+
+    // TODO: Keep the obsolete properties temporarily for baytrail only.
+#if !defined(RS_SERVER) && defined(HAVE_ANDROID_OS)
+    char gpgpu_property[PROPERTY_VALUE_MAX];
+    if (property_get("debug.rs.gpu.renderscript", gpgpu_property, NULL) > 0) {
+        rsc->props.mEnableGpuRs = atoi(gpgpu_property);
+    }
+    if (property_get("debug.rs.gpu.filterscript", gpgpu_property, NULL) > 0) {
+        rsc->props.mEnableGpuFs = atoi(gpgpu_property);
+    }
+    if (property_get("debug.rs.gpu.rsIntrinsic", gpgpu_property, NULL) > 0) {
+        rsc->props.mEnableGpuRsIntrinsic = atoi(gpgpu_property);
+    }
+#endif
 
     bool loadDefault = true;
 
@@ -519,6 +534,7 @@ Context::Context() {
     mIsContextLite = false;
     mLib = NULL;
     memset(&watchdog, 0, sizeof(watchdog));
+    memset(&mHal, 0, sizeof(mHal));
     mForceCpu = false;
     mContextType = RS_CONTEXT_TYPE_NORMAL;
     mSynchronous = false;
@@ -742,6 +758,12 @@ void Context::setFont(Font *f) {
 }
 #endif
 
+void Context::finish() {
+    if (mHal.funcs.finish) {
+        mHal.funcs.finish(this);
+    }
+}
+
 void Context::assignName(ObjectBase *obj, const char *name, uint32_t len) {
     rsAssert(!obj->getName());
     obj->setName(name, len);
@@ -806,6 +828,7 @@ namespace android {
 namespace renderscript {
 
 void rsi_ContextFinish(Context *rsc) {
+    rsc->finish();
 }
 
 void rsi_ContextBindRootScript(Context *rsc, RsScript vs) {
