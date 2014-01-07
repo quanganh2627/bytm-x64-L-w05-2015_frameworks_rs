@@ -239,7 +239,7 @@ void RsdCpuScriptIntrinsicBlend::kernel(const RsForEachStubParamStruct *p,
         }
         break;
     case BLEND_SRC_ATOP:
-#if defined(ARCH_ARM_HAVE_VFP) // FIXME: || defined(ARCH_X86_HAVE_SSSE3)
+#if defined(ARCH_ARM_HAVE_VFP) || defined(ARCH_X86_HAVE_SSSE3)
         if (gArchUseSIMD) {
             if((x1 + 8) < x2) {
                 uint32_t len = (x2 - x1) >> 3;
@@ -303,7 +303,7 @@ void RsdCpuScriptIntrinsicBlend::kernel(const RsForEachStubParamStruct *p,
         rsAssert(false);
         break;
     case BLEND_MULTIPLY:
-#if defined(ARCH_ARM_HAVE_VFP) // FIXME: || defined(ARCH_X86_HAVE_SSSE3)
+#if defined(ARCH_ARM_HAVE_VFP) || defined(ARCH_X86_HAVE_SSSE3)
         if (gArchUseSIMD) {
             if((x1 + 8) < x2) {
                 uint32_t len = (x2 - x1) >> 3;
