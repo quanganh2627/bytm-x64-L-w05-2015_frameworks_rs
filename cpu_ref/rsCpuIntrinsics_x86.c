@@ -1700,8 +1700,8 @@ void rsdIntrinsicBlendDstAtop_K(void *dst, const void *src, uint32_t count8) {
         outa = _mm_shufflelo_epi16(outs, 0xFF);
         outa = _mm_shufflehi_epi16(outa, 0xFF);
         t0 = _mm_sub_epi16(all1s, outa);
-        t0 = _mm_mullo_epi16(t0, outs);
-        t0 = _mm_adds_epu16(t0, _mm_mullo_epi16(ina, ins));
+        t0 = _mm_mullo_epi16(t0, ins);
+        t0 = _mm_adds_epu16(t0, _mm_mullo_epi16(ina, outs));
         t0 = _mm_srli_epi16(t0, 8);
 
         ins = _mm_unpackhi_epi8(in0, _mm_setzero_si128());
@@ -1711,8 +1711,8 @@ void rsdIntrinsicBlendDstAtop_K(void *dst, const void *src, uint32_t count8) {
         outa = _mm_shufflelo_epi16(outs, 0xFF);
         outa = _mm_shufflehi_epi16(outa, 0xFF);
         t1 = _mm_sub_epi16(all1s, outa);
-        t1 = _mm_mullo_epi16(t1, outs);
-        t1 = _mm_adds_epu16(t1, _mm_mullo_epi16(ina, ins));
+        t1 = _mm_mullo_epi16(t1, ins);
+        t1 = _mm_adds_epu16(t1, _mm_mullo_epi16(ina, outs));
         t1 = _mm_srli_epi16(t1, 8);
 
         ins = _mm_unpacklo_epi8(in1, _mm_setzero_si128());
@@ -1722,8 +1722,8 @@ void rsdIntrinsicBlendDstAtop_K(void *dst, const void *src, uint32_t count8) {
         outa = _mm_shufflelo_epi16(outs, 0xFF);
         outa = _mm_shufflehi_epi16(outa, 0xFF);
         t2 = _mm_sub_epi16(all1s, outa);
-        t2 = _mm_mullo_epi16(t2, outs);
-        t2 = _mm_adds_epu16(t2, _mm_mullo_epi16(ina, ins));
+        t2 = _mm_mullo_epi16(t2, ins);
+        t2 = _mm_adds_epu16(t2, _mm_mullo_epi16(ina, outs));
         t2 = _mm_srli_epi16(t2, 8);
 
         ins = _mm_unpackhi_epi8(in1, _mm_setzero_si128());
@@ -1733,8 +1733,8 @@ void rsdIntrinsicBlendDstAtop_K(void *dst, const void *src, uint32_t count8) {
         outa = _mm_shufflelo_epi16(outs, 0xFF);
         outa = _mm_shufflehi_epi16(outa, 0xFF);
         t3 = _mm_sub_epi16(all1s, outa);
-        t3 = _mm_mullo_epi16(t3, outs);
-        t3 = _mm_adds_epu16(t3, _mm_mullo_epi16(ina, ins));
+        t3 = _mm_mullo_epi16(t3, ins);
+        t3 = _mm_adds_epu16(t3, _mm_mullo_epi16(ina, outs));
         t3 = _mm_srli_epi16(t3, 8);
 
         t0 = _mm_packus_epi16(t0, t1);
