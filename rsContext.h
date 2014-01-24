@@ -207,6 +207,15 @@ public:
         RS_TIMER_CLEAR_SWAP,
         _RS_TIMER_TOTAL
     };
+
+    // RS Target Devices
+    enum RsDevices {
+        RS_DEVICE_UNDEF,
+        RS_DEVICE_CPU,
+        RS_DEVICE_GPU,
+        _RS_DEVICE_TOTAL
+    };
+
     uint64_t getTime() const;
     void timerInit();
     void timerReset();
@@ -223,10 +232,9 @@ public:
         bool mLogShadersUniforms;
         bool mLogVisual;
         bool mEnableCpuDriver;
-        bool mEnableGpuRs;
-        bool mEnableGpuFs;
-        bool mEnableGpuRsIntrinsic;
         uint32_t mDebugMaxThreads;
+        RsDevices mDeviceForScript;
+        RsDevices mDeviceForIntrinsic;
     } props;
 
     mutable struct {
