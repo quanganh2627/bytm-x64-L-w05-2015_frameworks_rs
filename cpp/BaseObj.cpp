@@ -33,7 +33,7 @@ void * BaseObj::getObjID(sp<const BaseObj> o) {
 
 
 BaseObj::BaseObj(void *id, sp<RS> rs) {
-    mRS = rs.get();
+    mRS = rs;
     mID = id;
 }
 
@@ -44,9 +44,7 @@ void BaseObj::checkValid() {
 }
 
 BaseObj::~BaseObj() {
-    if (mRS && mRS->getContext()) {
-        RS::dispatch->ObjDestroy(mRS->getContext(), mID);
-    }
+    RS::dispatch->ObjDestroy(mRS->getContext(), mID);
     mRS = NULL;
     mID = NULL;
 }
