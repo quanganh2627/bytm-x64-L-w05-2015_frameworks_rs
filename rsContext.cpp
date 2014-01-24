@@ -33,6 +33,7 @@
 #include <string.h>
 #include <dlfcn.h>
 #include <unistd.h>
+#include <ctype.h>
 
 #if !defined(RS_SERVER) && !defined(RS_COMPATIBILITY_LIB) && \
         defined(HAVE_ANDROID_OS)
@@ -209,6 +210,17 @@ void Context::setupProgramStore() {
 }
 #endif
 
+#if !defined(RS_SERVER) && defined(HAVE_ANDROID_OS)
+static char *strlwr(char *s) {
+    char *str = s;
+    while(*str != '\0') {
+        *str = tolower(*str);
+        str++;
+    }
+    return s;
+}
+#endif
+
 static uint32_t getProp(const char *str) {
 #if !defined(RS_SERVER) && defined(HAVE_ANDROID_OS)
     char buf[PROPERTY_VALUE_MAX];
@@ -314,21 +326,35 @@ void * Context::threadProc(void *vrsc) {
     rsc->props.mDebugMaxThreads = getProp("debug.rs.max-threads");
 
     rsc->props.mEnableCpuDriver = getProp("debug.rs.default-CPU-driver") != 0;
-    rsc->props.mEnableGpuRs = getProp("rs.gpu.renderscript") != 0;
-    rsc->props.mEnableGpuFs = getProp("rs.gpu.filterscript") != 0;
-    rsc->props.mEnableGpuRsIntrinsic = getProp("rs.gpu.rsIntrinsic") != 0;
+    rsc->props.mDeviceForScript = RS_DEVICE_UNDEF;
+    rsc->props.mDeviceForIntrinsic = RS_DEVICE_UNDEF;
 
-    // TODO: Keep the obsolete properties temporarily for baytrail only.
 #if !defined(RS_SERVER) && defined(HAVE_ANDROID_OS)
     char gpgpu_property[PROPERTY_VALUE_MAX];
-    if (property_get("debug.rs.gpu.renderscript", gpgpu_property, NULL) > 0) {
-        rsc->props.mEnableGpuRs = atoi(gpgpu_property);
+    if (property_get("debug.rs.dev.scripts", gpgpu_property, NULL) > 0) {
+        strlwr(gpgpu_property);
+        if (!strcmp(gpgpu_property, "cpu")) {
+            rsc->props.mDeviceForScript = RS_DEVICE_CPU;
+            ALOGD("The debug.rs.dev.scripts property forces scripts on CPU");
+        } else if (!strcmp(gpgpu_property, "gpu")) {
+            rsc->props.mDeviceForScript = RS_DEVICE_GPU;
+            ALOGD("The debug.rs.dev.scripts property forces scripts on GPU");
+        } else {
+            ALOGE("Invalid scripts property, set mDeviceForScript to RS_DEVICE_UNDEF.");
+        }
     }
-    if (property_get("debug.rs.gpu.filterscript", gpgpu_property, NULL) > 0) {
-        rsc->props.mEnableGpuFs = atoi(gpgpu_property);
-    }
-    if (property_get("debug.rs.gpu.rsIntrinsic", gpgpu_property, NULL) > 0) {
-        rsc->props.mEnableGpuRsIntrinsic = atoi(gpgpu_property);
+
+    if (property_get("debug.rs.dev.intrinsics", gpgpu_property, NULL) > 0) {
+        strlwr(gpgpu_property);
+        if (!strcmp(gpgpu_property, "cpu")) {
+            rsc->props.mDeviceForIntrinsic = RS_DEVICE_CPU;
+            ALOGD("The debug.rs.dev.intrinsics property forces intrinsics on CPU");
+        } else if (!strcmp(gpgpu_property, "gpu")) {
+            rsc->props.mDeviceForIntrinsic = RS_DEVICE_GPU;
+            ALOGD("The debug.rs.dev.intrinsics property forces intrinsics on GPU");
+        } else {
+            ALOGE("Invalid intrinsics property, set mDeviceForIntrinsic to RS_DEVICE_UNDEF.");
+        }
     }
 #endif
 
@@ -341,8 +367,7 @@ void * Context::threadProc(void *vrsc) {
 #define STR(S) XSTR(S)
 #define OVERRIDE_RS_DRIVER_STRING STR(OVERRIDE_RS_DRIVER)
 
-    if ((rsc->props.mEnableCpuDriver) || !(rsc->props.mEnableGpuRs ||
-        rsc->props.mEnableGpuFs || rsc->props.mEnableGpuRsIntrinsic)) {
+    if (rsc->props.mEnableCpuDriver) {
         ALOGE("Skipping override driver \'%s\' and loading default CPU driver \'libRSDriver.so\'.",
                  OVERRIDE_RS_DRIVER_STRING);
     } else if (rsc->mForceCpu) {
