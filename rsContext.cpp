@@ -512,6 +512,7 @@ Context::Context() {
     mDPI = 96;
     mIsContextLite = false;
     memset(&watchdog, 0, sizeof(watchdog));
+    memset(&mHal, 0, sizeof(mHal));
     mForceCpu = false;
     mContextType = RS_CONTEXT_TYPE_NORMAL;
     mSynchronous = false;
@@ -577,6 +578,11 @@ bool Context::initContext(Device *dev, const RsSurfaceConfig *sc) {
     timerSet(RS_TIMER_INTERNAL);
     if (mSynchronous) {
         threadProc(this);
+
+        if (mError != RS_ERROR_NONE) {
+            ALOGE("Errors during thread init (sync mode)");
+            return false;
+        }
     } else {
         status = pthread_create(&mThreadId, &threadAttr, threadProc, this);
         if (status) {
@@ -608,7 +614,7 @@ Context::~Context() {
         int status = pthread_join(mThreadId, &res);
         rsAssert(mExit);
 
-        if (mHal.funcs.shutdownDriver) {
+        if (mHal.funcs.shutdownDriver && mHal.drv) {
             mHal.funcs.shutdownDriver(this);
         }
 
@@ -723,6 +729,12 @@ void Context::setFont(Font *f) {
 }
 #endif
 
+void Context::finish() {
+    if (mHal.funcs.finish) {
+        mHal.funcs.finish(this);
+    }
+}
+
 void Context::assignName(ObjectBase *obj, const char *name, uint32_t len) {
     rsAssert(!obj->getName());
     obj->setName(name, len);
@@ -787,6 +799,7 @@ namespace android {
 namespace renderscript {
 
 void rsi_ContextFinish(Context *rsc) {
+    rsc->finish();
 }
 
 void rsi_ContextBindRootScript(Context *rsc, RsScript vs) {
