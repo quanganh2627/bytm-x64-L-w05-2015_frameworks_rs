@@ -228,6 +228,9 @@ static void GetCpuInfo() {
         return;
     }
 
+    // Make sure cpuinfo[] is null-terminated.
+    cpuinfo[4095] = '\0';
+
 #if defined(ARCH_ARM_HAVE_VFP)
     gArchUseSIMD = !!strstr(cpuinfo, " neon");
 #elif defined(ARCH_X86_HAVE_SSSE3)
